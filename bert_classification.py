@@ -428,19 +428,16 @@ if __name__ == "__main__":
     main()
 
 # Define parameter sets
-parameter_sets = [
-    # Set 1: Your current best (keep as baseline)
-    {"batch_size": 16, "learning_rate": 2e-5, "weight_decay": 0.01, "epochs": 5, "use_class_weights": True, "dropout": 0.1},
-
-    # Set 2: Slightly higher learning rate, more epochs, moderate batch size
-    {"batch_size": 24, "learning_rate": 3e-5, "weight_decay": 0.01, "epochs": 8, "use_class_weights": True, "dropout": 0.1},
-
-    # Set 3: Lower learning rate, more epochs, smaller batch size (for stability)
-    {"batch_size": 8, "learning_rate": 1e-5, "weight_decay": 0.01, "epochs": 10, "use_class_weights": True, "dropout": 0.1},
-
-    # Set 4: Try a bit more regularization
-    {"batch_size": 16, "learning_rate": 2e-5, "weight_decay": 0.05, "epochs": 7, "use_class_weights": True, "dropout": 0.2},
-]
+# parameter_sets = [
+#     # Set 1: Your current best (keep as baseline)
+#     {"batch_size": 16, "learning_rate": 2e-5, "weight_decay": 0.01, "epochs": 5, "use_class_weights": True, "dropout": 0.1},
+#     # Set 2: Slightly higher learning rate, more epochs, moderate batch size
+#     {"batch_size": 24, "learning_rate": 3e-5, "weight_decay": 0.01, "epochs": 8, "use_class_weights": True, "dropout": 0.1},
+#     # Set 3: Lower learning rate, more epochs, smaller batch size (for stability)
+#     {"batch_size": 8, "learning_rate": 1e-5, "weight_decay": 0.01, "epochs": 10, "use_class_weights": True, "dropout": 0.1},
+#     # Set 4: Try a bit more regularization
+#     {"batch_size": 16, "learning_rate": 2e-5, "weight_decay": 0.05, "epochs": 7, "use_class_weights": True, "dropout": 0.2},
+# ]
 
 # Load data
 train_file = "datasets/train_set.json"

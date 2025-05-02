@@ -206,16 +206,16 @@ tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
 
 combined_output_path = "outputs/combined_evaluation_report.txt"
 
-# Before training loop, initialize wandb
-wandb.init(
-    project="bert-fact-checking",
-    config={
-        "parameter_sets": parameter_sets,
-    }
-)
-
 # Iterate over each parameter set
 for i, params in enumerate(parameter_sets, start=1):
+    # Initialize wandb for each parameter set
+    wandb.init(
+        project="bert-fact-checking",
+        name=f"set_{i}",
+        config=params,
+        reinit=True
+    )
+
     # Create a unique name for the output directory based on the set number
     output_dir = f"outputs/set{i}"
     os.makedirs(output_dir, exist_ok=True)
@@ -329,4 +329,4 @@ for i, params in enumerate(parameter_sets, start=1):
         "average_metrics_curve":  wandb.Image(os.path.join(output_dir, 'visualizations/average_metrics.png')),
     })
 
-wandb.finish()
+    wandb.finish()

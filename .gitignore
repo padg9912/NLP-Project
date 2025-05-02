@@ -1,4 +1,7 @@
 # Ignore model weights, outputs, and large files
+
+*.txt
+
 outputs/
 *.pt
 *.png
@@ -11,3 +14,4 @@ __pycache__/
 *.ipynb_checkpoints/
 chroma_store/
 datasets/ground_truth.json 
+
