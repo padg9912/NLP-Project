@@ -4,6 +4,8 @@ import requests
 import random
 from datetime import datetime, timedelta
 import sys
+from transformers import AutoModelForCausalLM, AutoTokenizer, AutoModelForSeq2SeqLM
+import torch
 
 if len(sys.argv) > 2:
     INPUT_FILE = sys.argv[1]
@@ -16,16 +18,18 @@ SAVE_INTERVAL = 100  # Save every 100 examples
 OLLAMA_MODEL = "mistral:latest"  # switched to a smaller, faster model
 OLLAMA_URL = "http://localhost:11434/api/generate"
 
-# --- Ollama paraphrasing function ---
-def call_ollama_paraphrase(statement, model=OLLAMA_MODEL):
-    prompt = f"Paraphrase the following statement while preserving its meaning. Only return the new statement.\n\n'{statement}'"
-    data = {"model": model, "prompt": prompt, "stream": False}
-    response = requests.post(OLLAMA_URL, json=data)
-    if response.status_code == 200:
-        return response.json()["response"].strip()
-    else:
-        print(f"Ollama error: {response.text}")
-        return None
+# Use a T5-based paraphraser model
+T5_MODEL_NAME = "Vamsi/T5_Paraphrase_Paws"
+tokenizer = AutoTokenizer.from_pretrained(T5_MODEL_NAME)
+model = AutoModelForSeq2SeqLM.from_pretrained(T5_MODEL_NAME)
+
+def paraphrase_with_t5(statement):
+    input_text = f"paraphrase: {statement} </s>"
+    input_ids = tokenizer.encode(input_text, return_tensors="pt", max_length=256, truncation=True)
+    outputs = model.generate(
+        input_ids, max_length=256, num_beams=5, num_return_sequences=1, temperature=1.5
+    )
+    return tokenizer.decode(outputs[0], skip_special_tokens=True)
 
 def map_truth(orig_truth: str):
     if orig_truth in ["true", "mostly-true", "half-true"]:
@@ -44,11 +48,11 @@ def generate_augmented_merged_set():
         # Only augment 'true' class (can be changed as needed)
         if map_truth(entry.get('verdict', entry.get('truth_label', ''))) == "true":
             original = entry["statement"]
-            paraphrased = call_ollama_paraphrase(original)
+            paraphrased = paraphrase_with_t5(original)
             if paraphrased and paraphrased != original:
                 new_entry = entry.copy()
                 new_entry["augmented_statement"] = paraphrased
-                new_entry["generation_mode"] = "ollama_paraphrase"
+                new_entry["generation_mode"] = "t5_paraphrase"
                 merged.append(new_entry)
                 print(f"Paraphrased: {original} -> {paraphrased}")
             time.sleep(0.2)  # reduced sleep to speed up
