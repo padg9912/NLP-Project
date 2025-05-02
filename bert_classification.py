@@ -47,7 +47,7 @@ def load_data(file_path):
     with open(file_path, 'r') as f:
         data = json.load(f)
     
-    statements = [item['augmented_statement'] for item in data]
+    statements = [item.get('augmented_statement', item.get('statement', '')) for item in data]
     
     # Convert truth labels to three-way classification (true: 2, false: 0, unknown: 1)
     labels = []

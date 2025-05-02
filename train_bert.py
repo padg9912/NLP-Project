@@ -260,6 +260,23 @@ for i, params in enumerate(parameter_sets, start=1):
     # Train the model
     model, training_stats = train_bert_model(train_dataloader, val_dataloader, device, num_epochs=params['epochs'])
 
+    # Find the best epoch based on highest validation accuracy
+    best_epoch = max(range(len(training_stats)), key=lambda e: training_stats[e]['val_accuracy'])
+    best_val_acc = training_stats[best_epoch]['val_accuracy']
+    best_val_loss = training_stats[best_epoch]['val_loss']
+    best_stats = training_stats[best_epoch]
+
+    # Save the best model weights
+    torch.save(model.state_dict(), os.path.join(output_dir, 'bert_best_model.pt'))
+    # Save the best parameter set
+    with open(os.path.join(output_dir, 'bert_best_params.json'), 'w') as f:
+        json.dump({"params": params, "best_epoch": best_epoch+1, "best_val_accuracy": best_val_acc, "best_val_loss": best_val_loss}, f, indent=4)
+
+    # Optionally log best metrics to wandb
+    wandb.summary['best_val_accuracy'] = best_val_acc
+    wandb.summary['best_val_loss'] = best_val_loss
+    wandb.summary['best_epoch'] = best_epoch+1
+
     # Plot training statistics
     plot_training_stats(training_stats)
 
