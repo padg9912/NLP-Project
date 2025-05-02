@@ -12,10 +12,22 @@ from torch.utils.data import DataLoader, RandomSampler, SequentialSampler
 from bert_classification import load_data, NewsDataset, train_bert_model, evaluate_model, plot_training_stats
 import requests
 import time
+import wandb
 
 # Define parameter sets
 parameter_sets = [
-    {"batch_size": 16, "learning_rate": 2e-5, "weight_decay": 0.01, "epochs": 4, "dropout": 0.1},
+    # Baseline: Set 1 (best so far)
+    {"batch_size": 16, "learning_rate": 2e-5, "weight_decay": 0.01, "epochs": 5, "use_class_weights": True, "dropout": 0.1},
+    # More epochs
+    {"batch_size": 16, "learning_rate": 2e-5, "weight_decay": 0.01, "epochs": 8, "use_class_weights": True, "dropout": 0.1},
+    # Slightly higher learning rate
+    {"batch_size": 16, "learning_rate": 3e-5, "weight_decay": 0.01, "epochs": 5, "use_class_weights": True, "dropout": 0.1},
+    # Slightly lower learning rate
+    {"batch_size": 16, "learning_rate": 1e-5, "weight_decay": 0.01, "epochs": 5, "use_class_weights": True, "dropout": 0.1},
+    # More regularization (higher weight decay)
+    {"batch_size": 16, "learning_rate": 2e-5, "weight_decay": 0.05, "epochs": 5, "use_class_weights": True, "dropout": 0.1},
+    # More regularization (higher dropout)
+    {"batch_size": 16, "learning_rate": 2e-5, "weight_decay": 0.01, "epochs": 5, "use_class_weights": True, "dropout": 0.2},
 ]
 
 OLLAMA_MODEL = "llama3"
@@ -185,11 +197,7 @@ train_file = "datasets/train_set.json"
 val_file = "datasets/validate_set.json"
 test_file = "datasets/test_set.json"
 
-# Augment 'true' class in training data
-augmented_train_data = augment_true_class(train_file)
-train_statements = [item['augmented_statement'] for item in augmented_train_data]
-train_labels = [2 if item['truth_label'] == 'true' else 0 if item['truth_label'] == 'false' else 1 for item in augmented_train_data]
-
+train_statements, train_labels = load_data(train_file)
 val_statements, val_labels = load_data(val_file)
 test_statements, test_labels = load_data(test_file)
 
@@ -197,6 +205,14 @@ test_statements, test_labels = load_data(test_file)
 tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
 
 combined_output_path = "outputs/combined_evaluation_report.txt"
+
+# Before training loop, initialize wandb
+wandb.init(
+    project="bert-fact-checking",
+    config={
+        "parameter_sets": parameter_sets,
+    }
+)
 
 # Iterate over each parameter set
 for i, params in enumerate(parameter_sets, start=1):
@@ -289,3 +305,28 @@ for i, params in enumerate(parameter_sets, start=1):
         f.write(f"Set {i} Results:\n")
         f.write(json.dumps(report_content, indent=4))
         f.write("\n\n")
+
+    # Log metrics to wandb
+    for epoch in range(params['epochs']):
+        avg_train_loss = training_stats[epoch]['train_loss']
+        avg_val_loss = training_stats[epoch]['val_loss']
+        val_accuracy = training_stats[epoch]['val_accuracy']
+        wandb.log({
+            "epoch": epoch + 1,
+            "train_loss": avg_train_loss,
+            "val_loss": avg_val_loss,
+            "val_accuracy": val_accuracy,
+            "val_f1_macro": training_stats[epoch]['val_f1_macro'] if 'val_f1_macro' in training_stats[epoch] else None,
+        })
+
+    # Log artifacts to wandb
+    wandb.save(os.path.join(output_dir, 'bert_classifier_trained.pt'))
+    wandb.log({
+        "confusion_matrix": wandb.Image(os.path.join(output_dir, 'visualizations/confusion_matrix.png')),
+        "training_loss_curve": wandb.Image(os.path.join(output_dir, 'visualizations/loss_curves.png')),
+        "validation_metrics_curve": wandb.Image(os.path.join(output_dir, 'visualizations/accuracy_curve.png')),
+        "class_metrics_curve": wandb.Image(os.path.join(output_dir, 'visualizations/class_metrics.png')),
+        "average_metrics_curve":  wandb.Image(os.path.join(output_dir, 'visualizations/average_metrics.png')),
+    })
+
+wandb.finish()

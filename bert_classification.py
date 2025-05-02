@@ -303,7 +303,8 @@ def plot_training_stats(training_stats):
     # Plot accuracy and F1
     plt.figure(figsize=(10, 6))
     plt.plot(stats_df['epoch'], stats_df['val_accuracy'], 'g-o', label='Validation Accuracy')
-    plt.plot(stats_df['epoch'], stats_df['val_f1_macro'], 'm-o', label='Validation Macro F1')
+    if 'val_f1_macro' in stats_df.columns:
+        plt.plot(stats_df['epoch'], stats_df['val_f1_macro'], 'm-o', label='Validation Macro F1')
     plt.title('Validation Metrics')
     plt.xlabel('Epoch')
     plt.ylabel('Score')
@@ -428,17 +429,17 @@ if __name__ == "__main__":
 
 # Define parameter sets
 parameter_sets = [
-    # Set 1: Higher learning rate, lower weight decay (to combat underfitting)
-    {"batch_size": 32, "learning_rate": 5e-5, "weight_decay": 0.01, "epochs": 5, 
-     "use_class_weights": False, "accumulation_steps": 1},
-    
+    # Set 1: Your current best (keep as baseline)
+    {"batch_size": 16, "learning_rate": 2e-5, "weight_decay": 0.01, "epochs": 5, "use_class_weights": True, "dropout": 0.1},
 
-    {"batch_size": 64, "learning_rate": 1e-5, "weight_decay": 0.1, "epochs": 8,
-     "use_class_weights": False, "accumulation_steps": 1},
-    
+    # Set 2: Slightly higher learning rate, more epochs, moderate batch size
+    {"batch_size": 24, "learning_rate": 3e-5, "weight_decay": 0.01, "epochs": 8, "use_class_weights": True, "dropout": 0.1},
 
-    {"batch_size": 32, "learning_rate": 3e-5, "weight_decay": 0.05, "epochs": 5,
-     "use_class_weights": True, "accumulation_steps": 1}
+    # Set 3: Lower learning rate, more epochs, smaller batch size (for stability)
+    {"batch_size": 8, "learning_rate": 1e-5, "weight_decay": 0.01, "epochs": 10, "use_class_weights": True, "dropout": 0.1},
+
+    # Set 4: Try a bit more regularization
+    {"batch_size": 16, "learning_rate": 2e-5, "weight_decay": 0.05, "epochs": 7, "use_class_weights": True, "dropout": 0.2},
 ]
 
 # Load data
