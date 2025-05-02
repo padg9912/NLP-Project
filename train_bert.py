@@ -10,11 +10,44 @@ from transformers import BertTokenizer, BertForSequenceClassification, get_linea
 from torch.optim import AdamW
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler
 from bert_classification import load_data, NewsDataset, train_bert_model, evaluate_model, plot_training_stats
+import requests
+import time
 
 # Define parameter sets
 parameter_sets = [
     {"batch_size": 16, "learning_rate": 2e-5, "weight_decay": 0.01, "epochs": 4, "dropout": 0.1},
 ]
+
+OLLAMA_MODEL = "llama3"
+OLLAMA_URL = "http://localhost:11434/api/generate"
+
+def paraphrase_with_ollama(text, model=OLLAMA_MODEL):
+    prompt = f"Paraphrase the following statement while preserving its meaning. Only return the new statement.\n\n'{text}'"
+    data = {"model": model, "prompt": prompt, "stream": False}
+    response = requests.post(OLLAMA_URL, json=data)
+    if response.status_code == 200:
+        return response.json()["response"].strip()
+    else:
+        print(f"Ollama error: {response.text}")
+        return None
+
+def augment_true_class(train_file):
+    with open(train_file, "r") as f:
+        data = json.load(f)
+    augmented = []
+    for entry in data:
+        augmented.append(entry)
+        if entry["truth_label"] == "true":
+            original = entry["augmented_statement"].strip()
+            paraphrased = paraphrase_with_ollama(original)
+            if paraphrased and paraphrased != original:
+                new_entry = entry.copy()
+                new_entry["augmented_statement"] = paraphrased
+                new_entry["generation_mode"] = "llm_paraphrase"
+                augmented.append(new_entry)
+                print(f"Paraphrased: {original} -> {paraphrased}")
+            time.sleep(1)  # avoid overloading the API
+    return augmented
 
 def visualize_metrics(test_labels, test_preds, training_stats, output_dir):
     """
@@ -148,10 +181,15 @@ def visualize_metrics(test_labels, test_preds, training_stats, output_dir):
     print(f"- Average metrics: average_metrics.png")
 
 # Load data
-train_file = "train_set.json"
-val_file = "validate_set.json"
-test_file = "test_set.json"
-train_statements, train_labels = load_data(train_file)
+train_file = "datasets/train_set.json"
+val_file = "datasets/validate_set.json"
+test_file = "datasets/test_set.json"
+
+# Augment 'true' class in training data
+augmented_train_data = augment_true_class(train_file)
+train_statements = [item['augmented_statement'] for item in augmented_train_data]
+train_labels = [2 if item['truth_label'] == 'true' else 0 if item['truth_label'] == 'false' else 1 for item in augmented_train_data]
+
 val_statements, val_labels = load_data(val_file)
 test_statements, test_labels = load_data(test_file)
 

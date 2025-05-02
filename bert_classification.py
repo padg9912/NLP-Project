@@ -442,9 +442,9 @@ parameter_sets = [
 ]
 
 # Load data
-train_file = "train_set.json"
-val_file = "validate_set.json"
-test_file = "test_set.json"
+train_file = "datasets/train_set.json"
+val_file = "datasets/validate_set.json"
+test_file = "datasets/test_set.json"
 train_statements, train_labels = load_data(train_file)
 val_statements, val_labels = load_data(val_file)
 test_statements, test_labels = load_data(test_file)

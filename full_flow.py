@@ -5,8 +5,60 @@ from ingest import to_unix_timestamp
 import torch
 from transformers import BertTokenizer
 from bert_classification import predict, BertForSequenceClassification
+from llm_classifier import call_gemini
+import requests
 
-def full_pipeline(query, query_timestamp, bert_model_path='outputs/bert_classifier.pt', top_k=3):
+def call_ollama(model_name, prompt):
+    url = "http://localhost:11434/api/generate"
+    data = {
+        "model": model_name,
+        "prompt": prompt,
+        "stream": False
+    }
+    response = requests.post(url, json=data)
+    return response.json()["response"]
+
+def synthesize_evidence_with_ollama(claim, date, docs, model_name):
+    prompt = f"""
+Given the following claim and supporting/contradictory evidence, provide a concise summary and explain whether the evidence supports, refutes, or is insufficient to judge the claim. Then, state your verdict (true/false/unknown) and explain your reasoning step by step.
+
+Claim: {claim}
+Date: {date}
+
+Evidence:
+"""
+    for i, doc in enumerate(docs):
+        prompt += f"{i+1}. \"{doc.page_content}\" (Date: {doc.metadata.get('time_stamp')}, Truth: {doc.metadata.get('truthfulness')})\n"
+    prompt += """
+
+Your response should include:
+- A summary of the evidence.
+- A step-by-step explanation.
+- A final verdict (true/false/unknown).
+"""
+    return call_ollama(model_name, prompt)
+
+def synthesize_evidence_with_llm(claim, date, docs):
+    prompt = f"""
+Given the following claim and supporting/contradictory evidence, provide a concise summary and explain whether the evidence supports, refutes, or is insufficient to judge the claim. Then, state your verdict (true/false/unknown) and explain your reasoning step by step.
+
+Claim: {claim}
+Date: {date}
+
+Evidence:
+"""
+    for i, doc in enumerate(docs):
+        prompt += f"{i+1}. \"{doc.page_content}\" (Date: {doc.metadata.get('time_stamp')}, Truth: {doc.metadata.get('truthfulness')})\n"
+    prompt += """
+
+Your response should include:
+- A summary of the evidence.
+- A step-by-step explanation.
+- A final verdict (true/false/unknown).
+"""
+    return call_gemini(prompt, model="2.0-flash-lite")
+
+def full_pipeline(query, query_timestamp, bert_model_path='outputs/bert_classifier.pt', top_k=3, llm_models=None):
     """
     Complete pipeline: retrieval -> reranking -> classification
     """
@@ -62,9 +114,17 @@ def full_pipeline(query, query_timestamp, bert_model_path='outputs/bert_classifi
         print(f"    Date: {doc.metadata.get('time_stamp')}")
         print(f"    Truth: {doc.metadata.get('truthfulness')}")
     
+    # Step 3: LLM-based evidence synthesis and explainability (multiple models)
+    llm_outputs = {}
+    if llm_models is None:
+        llm_models = ["llama3", "mistral", "qwen2", "gemma"]
+    for model_name in llm_models:
+        llm_outputs[model_name] = synthesize_evidence_with_ollama(query, query_timestamp, reranked_docs, model_name)
+    
     return {
         'classification': classification_result,
-        'supporting_docs': reranked_docs
+        'supporting_docs': reranked_docs,
+        'llm_outputs': llm_outputs
     }
 
 if __name__ == "__main__":
