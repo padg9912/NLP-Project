@@ -1,0 +1,11 @@
+# Ignore model weights, outputs, and large files
+outputs/
+*.pt
+*.png
+*.jpg
+*.jpeg
+*.h5
+*.ckpt
+*.pth
+__pycache__/
+*.ipynb_checkpoints/ 
